@@ -1,0 +1,74 @@
+db.getCollection('students').find({'studium.zaciatokStudia': })
+
+
+db.getCollection('students').find({
+  "$expr": {
+    "$gte": ["$studium.zaciatokStudia", { "$dateFromString": { "dateString": "1.1.1999" }} ],
+    "$lt": [{ "$dateFromString": { "dateString": "$studium.koniecStudia" }}, { "$dateFromString": { "dateString": "1999" }} ]
+  }
+})
+
+
+
+db.getCollection('students').find({
+  "$expr": {
+    "$gte": ["$studium.zaciatokStudia", { "$dateFromString": { "dateString": "1.1.1999", "format": "%d.%m.%Y" }} ]
+  }
+})
+
+db.getCollection('students').find({
+  "$expr": {
+    "$gte": ["studium.zaciatokStudia", { "$dateFromString": { "dateString": "2001-01-01" }} ]
+  }
+})
+
+db.getCollection('students').find({
+    "studium.zaciatokStudia" : { "$lte": ISODate("2001-12-31") },
+    "studium.koniecStudia" : { "$gte": ISODate("2001-01-01") },
+    "studium.studijnyProgram" : {_id : 2, skratka : "BCH", popis : "Biológia - chémia"}
+})
+
+
+
+db.students.aggregate([
+    {$match: {}
+    },
+    {$group: 
+        {
+            _id: '$titul', 
+            pocet: {$sum: NumberInt(1)}
+        }
+    }
+]);
+
+
+map = function(){
+	emit(this.titul, 1);
+}
+
+reduce = function(titul, pocty){
+    return Array.sum(pocty);    
+}
+
+db.students.mapReduce(map, reduce, {out: { inline : 1 } }).find();
+
+==============================================================================
+
+map = function() {
+	this.studium.forEach(function(studium) {
+		var startYear = studium.zaciatokStudia.getFullYear();
+		var endYear = startYear;
+		if (studium.koniecStudia) {
+			endYear = studium.koniecStudia.getFullYear();
+		}
+		for (var year = startYear; year <= endYear; year++) {
+			emit({rok: year, studijnyProgram: studium.studijnyProgram}, 1);
+		}
+	});
+}
+
+reduce = function(studProgram, pocty) {
+    return Array.sum(pocty);
+}
+
+db.students.mapReduce(map, reduce, {out: {inline : 1}}).find();
